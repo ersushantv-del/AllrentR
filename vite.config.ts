@@ -5,9 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
-    port: 8080,
-    allowedHosts: ["allrent-r.vercel.app"], // <- yaha add karo
+    host: "0.0.0.0",
+    port: 5000,
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
