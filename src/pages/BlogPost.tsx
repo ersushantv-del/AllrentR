@@ -17,6 +17,13 @@ const calculateReadingTime = (content: string): number => {
   return Math.ceil(words / wordsPerMinute);
 };
 
+// Helper function to decode HTML entities (fixes issue where tags show as text)
+const decodeHtml = (html: string): string => {
+  const txt = document.createElement("textarea");
+  txt.innerHTML = html;
+  return txt.value;
+};
+
 const BlogPost = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -27,7 +34,7 @@ const BlogPost = () => {
   useEffect(() => {
     const fetchBlog = async () => {
       if (!id) return;
-      
+
       try {
         const { data, error } = await supabase
           .from('blogs')
@@ -69,7 +76,7 @@ const BlogPost = () => {
   // Get base URL for canonical and OG URLs
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://allrent-r.vercel.app';
   const blogUrl = blog ? `${baseUrl}/blog/${blog.id}` : '';
-  
+
   // Prepare SEO data
   const seoTitle = blog?.seo_title || blog?.title || '';
   const seoDescription = blog?.meta_description || blog?.description || '';
@@ -131,7 +138,7 @@ const BlogPost = () => {
         />
       )}
       <Navbar />
-      
+
       {/* Hero Section */}
       <div className="relative pt-24 pb-12 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#E5383B]/5 via-transparent to-[#BA181B]/5" />
@@ -216,12 +223,11 @@ const BlogPost = () => {
 
           {/* Content */}
           <article className="prose prose-lg max-w-none">
-            <div 
-              className="text-[#161A1D]/90 leading-relaxed whitespace-pre-wrap"
+            <div
+              className="text-[#161A1D]/90 leading-relaxed"
               style={{ fontSize: '1.125rem', lineHeight: '1.75' }}
-            >
-              {blog.content}
-            </div>
+              dangerouslySetInnerHTML={{ __html: decodeHtml(blog.content) }}
+            />
           </article>
 
           {/* Reference Link */}
@@ -248,8 +254,8 @@ const BlogPost = () => {
               <h3 className="text-sm font-semibold text-[#161A1D] mb-3">Tags:</h3>
               <div className="flex flex-wrap gap-2">
                 {blog.tags.map((tag, index) => (
-                  <Badge 
-                    key={index} 
+                  <Badge
+                    key={index}
                     variant="outline"
                     className="bg-[#F5F3F4] text-[#660708] border-[#E5383B]/20"
                   >
@@ -268,7 +274,7 @@ const BlogPost = () => {
               </h2>
               <div className="grid md:grid-cols-3 gap-6">
                 {suggestedBlogs.map((suggestedBlog) => (
-                  <Card 
+                  <Card
                     key={suggestedBlog.id}
                     className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
                     onClick={() => navigate(`/blog/${suggestedBlog.id}`)}

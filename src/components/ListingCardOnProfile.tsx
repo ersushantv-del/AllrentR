@@ -40,7 +40,7 @@ export default function ListingsCardOnProfile({ listings }) {
       <Card className="relative max-w-7xl mx-auto bg-white/80 backdrop-blur-sm shadow-2xl rounded-[2rem] overflow-hidden border border-[#D3D3D3]/30">
         {/* Animated gradient border */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#660708] via-[#E5383B] to-[#BA181B] animate-pulse"></div>
-        
+
         {/* Decorative background elements */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#E5383B]/10 via-[#BA181B]/5 to-transparent rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-gradient-to-tr from-[#660708]/10 via-[#161A1D]/5 to-transparent rounded-full blur-3xl"></div>
@@ -59,7 +59,7 @@ export default function ListingsCardOnProfile({ listings }) {
                 Manage and track all your products
               </p>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {pendingListings > 0 && (
                 <div className="relative group">
@@ -105,10 +105,10 @@ export default function ListingsCardOnProfile({ listings }) {
                 >
                   {/* Hover gradient effect */}
                   <div className="absolute inset-0 bg-gradient-to-r from-[#E5383B]/0 via-[#E5383B]/5 to-[#BA181B]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  
+
                   {/* Decorative corner accent */}
                   <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-[#E5383B]/10 to-transparent rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-                  
+
                   <div className="relative p-8">
                     <div className="flex flex-col lg:flex-row items-start justify-between gap-6">
                       {/* Content Section */}
@@ -123,23 +123,23 @@ export default function ListingsCardOnProfile({ listings }) {
                             <span className="capitalize">{listing.listing_status}</span>
                           </span>
                         </div>
-                        
+
                         {/* Description */}
                         <p className="text-[#660708]/70 text-lg leading-relaxed">
                           {listing.description}
                         </p>
-                        
+
                         {/* Stats Section */}
                         <div className="flex items-center gap-6 flex-wrap pt-2">
                           {/* Price Badge */}
                           <div className="relative group/price">
                             <div className="absolute inset-0 bg-gradient-to-r from-[#BA181B] to-[#E5383B] rounded-2xl blur opacity-40 group-hover/price:opacity-60 transition-opacity"></div>
                             <div className="relative flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-[#BA181B] to-[#E5383B] text-white font-bold rounded-2xl shadow-lg">
-                              <span className="text-2xl">₹{listing.rent_price}</span>
-                              <span className="text-sm text-white/90">/day</span>
+                              <span className="text-2xl">₹{listing.rent_price || 0}</span>
+                              {listing.product_type !== 'sale' && <span className="text-sm text-white/90">/day</span>}
                             </div>
                           </div>
-                          
+
                           {/* Views */}
                           <div className="flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-[#F5F3F4] to-white rounded-2xl border-2 border-[#D3D3D3] hover:border-[#660708]/30 transition-colors group/stat">
                             <Eye className="w-5 h-5 text-[#660708] group-hover/stat:scale-110 transition-transform" />
@@ -148,7 +148,7 @@ export default function ListingsCardOnProfile({ listings }) {
                               <span className="text-lg font-bold text-[#660708]">{listing.views || 0}</span>
                             </div>
                           </div>
-                          
+
                           {/* Rating */}
                           <div className="flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-amber-50 to-amber-100 rounded-2xl border-2 border-amber-200 hover:border-amber-300 transition-colors group/stat">
                             <Star className="w-5 h-5 text-amber-500 fill-amber-500 group-hover/stat:scale-110 transition-transform" />
@@ -161,7 +161,7 @@ export default function ListingsCardOnProfile({ listings }) {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Bottom accent line */}
                   <div className="h-1 bg-gradient-to-r from-transparent via-[#E5383B]/30 to-transparent group-hover:via-[#E5383B]/60 transition-all duration-500"></div>
                 </div>

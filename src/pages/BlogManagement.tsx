@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { blogSchema } from "@/lib/validation";
 import { toast } from "sonner";
+import RichTextEditor from "@/components/RichTextEditor";
 
 const BlogManagement = () => {
   const { data: blogs, isLoading } = useAdminBlogs();
@@ -148,12 +149,18 @@ const BlogManagement = () => {
     setTagInput("");
   };
 
+  const decodeHtml = (html: string) => {
+    const txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    return txt.value;
+  };
+
   const handleEdit = (blog: Blog) => {
     setEditingBlog(blog);
     setFormData({
       title: blog.title,
       description: blog.description,
-      content: blog.content,
+      content: decodeHtml(blog.content),
       category: blog.category,
       published: blog.published,
       image_url: blog.image_url || "",
@@ -222,6 +229,7 @@ const BlogManagement = () => {
                     <Label htmlFor="title">Title</Label>
                     <Input
                       id="title"
+                      placeholder="Enter Your Desired Title"
                       value={formData.title}
                       onChange={(e) =>
                         setFormData((prev) => ({
@@ -266,18 +274,18 @@ const BlogManagement = () => {
 
                   <div>
                     <Label htmlFor="content">Content</Label>
-                    <Textarea
-                      id="content"
-                      value={formData.content}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          content: e.target.value,
-                        }))
-                      }
-                      rows={6}
-                      required
-                    />
+                    <div className="mt-2">
+                      <RichTextEditor
+                        value={formData.content}
+                        onChange={(content) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            content: content,
+                          }))
+                        }
+                        placeholder="Start Writing"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -383,7 +391,7 @@ const BlogManagement = () => {
                   {/* SEO Section */}
                   <div className="border-t pt-6 mt-6">
                     <h3 className="text-lg font-semibold mb-4">SEO Settings</h3>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="seo_title">

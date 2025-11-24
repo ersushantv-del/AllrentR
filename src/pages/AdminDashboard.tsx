@@ -53,7 +53,7 @@ const AdminDashboard = () => {
   const handleApprove = async (listingId: string) => {
     setLoading(listingId);
     const success = await approveListing(listingId);
-    
+
     if (success) {
       await supabase.from('admin_activity_logs').insert({
         admin_id: user?.id,
@@ -77,7 +77,7 @@ const AdminDashboard = () => {
   const handleReject = async (listingId: string) => {
     setLoading(listingId);
     const success = await rejectListing(listingId);
-    
+
     if (success) {
       await supabase.from('admin_activity_logs').insert({
         admin_id: user?.id,
@@ -154,7 +154,7 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 pt-28 pb-20">
         {/* Header Section */}
         <div className="mb-12">
@@ -310,8 +310,8 @@ const AdminDashboard = () => {
                   {pendingListings.map((listing) => (
                     <Card key={listing.id} className="p-4 border-l-4 border-l-amber-500 hover:shadow-md transition-all">
                       <div className="flex gap-4">
-                        <img 
-                          src={listing.images[0] || '/placeholder.svg'} 
+                        <img
+                          src={listing.images[0] || '/placeholder.svg'}
                           alt={listing.product_name}
                           className="w-24 h-24 object-cover rounded-lg border border-border"
                         />
@@ -319,7 +319,7 @@ const AdminDashboard = () => {
                           <h3 className="font-bold text-lg mb-1">{listing.product_name}</h3>
                           <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{listing.description}</p>
                           <div className="flex items-center gap-4 text-sm">
-                            <span className="font-semibold text-primary">₹{listing.rent_price}/day</span>
+                            <span className="font-semibold text-primary">₹{listing.rent_price || 0}{listing.product_type === 'sale' ? '' : '/day'}</span>
                             <span className="text-muted-foreground">📍 {listing.pin_code}</span>
                             {listing.listing_type === 'paid' && (
                               <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">

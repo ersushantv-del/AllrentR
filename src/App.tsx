@@ -11,6 +11,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Listings from "./pages/Listings";
 import SubmitListing from "./pages/SubmitListing";
+import AIListing from "./pages/AIListing";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import Blog from "./pages/Blog";
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/listings" element={<Listings />} />
             <Route path="/submit-listing" element={<SubmitListing />} />
+            <Route path="/submit-listing-ai" element={<AIListing />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/admin" element={<AdminDashboard />} />
@@ -65,7 +67,7 @@ const App = () => (
             <Route path="/admin/coupons" element={<CouponManagement />} />
             <Route path="/manage-packages" element={<PackageManagement />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route  path="/about" element={<AboutPage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/blog" element={<Blog />} />
 
             <Route path="/terms-and-conditions" element={<TermsAndConditionPage />} />

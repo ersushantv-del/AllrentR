@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -47,6 +48,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.24",
+    "groq-sdk": "^0.36.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
@@ -56,6 +58,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.61.1",
     "react-icons": "^5.5.0",
+    "react-quill": "^2.0.0",
     "react-resizable-panels": "^2.1.9",
     "react-responsive-carousel": "^3.2.23",
     "react-router-dom": "^6.30.1",
