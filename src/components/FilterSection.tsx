@@ -17,6 +17,12 @@ interface FilterSectionProps {
   clusterMode: 'none' | 'city' | 'pin' | 'geo';
   setClusterMode: (value: 'none' | 'city' | 'pin' | 'geo') => void;
   setSelectedClusterItems?: (items: any[] | null) => void;
+  minPrice: number;
+  setMinPrice: (value: number) => void;
+  maxPrice: number;
+  setMaxPrice: (value: number) => void;
+  sortBy: string;
+  setSortBy: (value: string) => void;
 }
 
 const FilterSection = ({
@@ -35,6 +41,12 @@ const FilterSection = ({
   clusterMode,
   setClusterMode,
   setSelectedClusterItems,
+  minPrice,
+  setMinPrice,
+  maxPrice,
+  setMaxPrice,
+  sortBy,
+  setSortBy,
 }: FilterSectionProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -43,6 +55,9 @@ const FilterSection = ({
     pinCodeFilter ? 1 : 0,
     categoryFilter ? 1 : 0,
     nearbyEnabled ? 1 : 0,
+    minPrice > 0 ? 1 : 0,
+    maxPrice < 1000000 ? 1 : 0,
+    sortBy !== 'newest' ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
   const handleRequestLocation = () => {
@@ -57,7 +72,7 @@ const FilterSection = ({
     <div className="w-full mb-8">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {!isExpanded && (
-          <div 
+          <div
             onClick={() => setIsExpanded(true)}
             className="group cursor-pointer relative"
           >
@@ -70,7 +85,7 @@ const FilterSection = ({
                       <SlidersHorizontal className="w-6 h-6 text-white" />
                     </div>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-2xl font-bold bg-gradient-to-r from-[#161A1D] via-[#660708] to-[#BA181B] bg-clip-text text-transparent">
                       Smart Filters
@@ -88,7 +103,7 @@ const FilterSection = ({
                       <span className="text-white font-bold text-sm">{activeFiltersCount}</span>
                     </div>
                   )}
-                  
+
                   <div className="bg-gradient-to-br from-[#660708] to-[#BA181B] p-3 rounded-full group-hover:rotate-180 transition-transform duration-500">
                     <ChevronDown className="w-5 h-5 text-white" />
                   </div>
@@ -118,7 +133,12 @@ const FilterSection = ({
                     )}
                     {nearbyEnabled && (
                       <div className="px-3 py-1 bg-gradient-to-r from-[#E5383B]/10 to-[#BA181B]/10 rounded-full border border-[#E5383B]/30">
-                        <span className="text-xs font-medium text-[#660708]">Nearby: {radiusMeters/1000}km</span>
+                        <span className="text-xs font-medium text-[#660708]">Nearby: {radiusMeters / 1000}km</span>
+                      </div>
+                    )}
+                    {(minPrice > 0 || maxPrice < 1000000) && (
+                      <div className="px-3 py-1 bg-gradient-to-r from-[#E5383B]/10 to-[#BA181B]/10 rounded-full border border-[#E5383B]/30">
+                        <span className="text-xs font-medium text-[#660708]">Price: ₹{minPrice} - ₹{maxPrice}</span>
                       </div>
                     )}
                   </div>
@@ -131,9 +151,6 @@ const FilterSection = ({
         {/* Expanded View */}
         {isExpanded && (
           <div className="relative">
-            {/* Animated background glow */}
-            {/* <div className="absolute -inset-4 bg-gradient-to-r from-[#E5383B] via-[#BA181B] to-[#660708] rounded-[2.5rem] blur-3xl opacity-20 animate-pulse" /> */}
-            
             <div className="relative bg-gradient-to-br from-white/95 to-[#F5F3F4]/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
               {/* Header with close button */}
               <div className="relative p-6 border-b border-[#B1A7A6]/20">
@@ -152,7 +169,7 @@ const FilterSection = ({
                       </p>
                     </div>
                   </div>
-                  
+
                   <button
                     onClick={() => setIsExpanded(false)}
                     className="group p-2 hover:bg-[#E5383B]/10 rounded-xl transition-all duration-300"
@@ -221,6 +238,45 @@ const FilterSection = ({
                   </div>
                 </div>
 
+                {/* Price Range and Sort */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white/50 p-4 rounded-2xl border border-[#B1A7A6]/20">
+                    <label className="block text-sm font-semibold text-[#660708] mb-3">Price Range (₹)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(Number(e.target.value))}
+                        placeholder="Min"
+                        className="w-full bg-white border border-[#B1A7A6]/30 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E5383B]/50"
+                      />
+                      <span className="text-[#660708]">-</span>
+                      <input
+                        type="number"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(Number(e.target.value))}
+                        placeholder="Max"
+                        className="w-full bg-white border border-[#B1A7A6]/30 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E5383B]/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-white/50 p-4 rounded-2xl border border-[#B1A7A6]/20">
+                    <label className="block text-sm font-semibold text-[#660708] mb-3">Sort By</label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="w-full bg-white border border-[#B1A7A6]/30 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E5383B]/50"
+                    >
+                      <option value="newest">Newest First</option>
+                      <option value="price_asc">Price: Low to High</option>
+                      <option value="price_desc">Price: High to Low</option>
+                      <option value="most_reviewed">Most Reviewed</option>
+                      <option value="top_rated">Top Rated</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Category Pills */}
                 <div>
                   <label className="block text-sm font-semibold text-[#660708] mb-3 ml-1">
@@ -231,11 +287,10 @@ const FilterSection = ({
                       <button
                         key={cat.value}
                         onClick={() => setCategoryFilter(cat.value === '' ? '' : cat.value)}
-                        className={`px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 ${
-                          categoryFilter === cat.value
+                        className={`px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-300 ${categoryFilter === cat.value
                             ? 'bg-gradient-to-r from-[#E5383B] to-[#BA181B] text-white shadow-lg scale-105'
                             : 'bg-white/80 border-2 border-[#B1A7A6]/30 text-[#161A1D] hover:border-[#E5383B]/50 hover:scale-105'
-                        }`}
+                          }`}
                       >
                         {cat.label}
                       </button>
@@ -252,16 +307,15 @@ const FilterSection = ({
                     </div>
                     <button
                       onClick={handleRequestLocation}
-                      className={`px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 ${
-                        nearbyEnabled
+                      className={`px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 ${nearbyEnabled
                           ? 'bg-gradient-to-r from-[#E5383B] to-[#BA181B] text-white shadow-lg'
                           : 'bg-white border-2 border-[#B1A7A6]/30 text-[#660708] hover:border-[#E5383B]/50'
-                      }`}
+                        }`}
                     >
                       {nearbyEnabled ? 'Enabled' : 'Enable'}
                     </button>
                   </div>
-                  
+
                   {nearbyEnabled && (
                     <div className="flex items-center gap-3">
                       <span className="text-sm text-[#660708]/70">Radius:</span>
@@ -299,11 +353,10 @@ const FilterSection = ({
                             setSelectedClusterItems(null);
                           }
                         }}
-                        className={`p-4 rounded-xl font-medium text-sm transition-all duration-300 ${
-                          clusterMode === val
+                        className={`p-4 rounded-xl font-medium text-sm transition-all duration-300 ${clusterMode === val
                             ? 'bg-gradient-to-br from-[#E5383B] to-[#BA181B] text-white shadow-lg scale-105'
                             : 'bg-white/80 border-2 border-[#B1A7A6]/30 text-[#161A1D] hover:border-[#E5383B]/50 hover:scale-105'
-                        }`}
+                          }`}
                       >
                         {label}
                       </button>
@@ -327,6 +380,9 @@ const FilterSection = ({
                         setCategoryFilter('');
                         setNearbyEnabled(false);
                         setClusterMode('none');
+                        setMinPrice(0);
+                        setMaxPrice(1000000);
+                        setSortBy('newest');
                         if (setSelectedClusterItems) {
                           setSelectedClusterItems(null);
                         }

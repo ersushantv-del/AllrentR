@@ -1,0 +1,49 @@
+URGENT: YOU MUST RUN THIS TO FIX THE WISHLIST ERROR
+
+I cannot access your Supabase database directly for security reasons.
+You must run this SQL code yourself to create the missing wishlist table.
+
+INSTRUCTIONS:
+1. Click this link to open your Supabase SQL Editor:
+   https://supabase.com/dashboard/project/rodhcrqwunhzgxcopcqk/sql/new
+
+   (If that link doesn't work, go to https://supabase.com/dashboard, select your project, and click "SQL Editor" on the left)
+
+2. Copy the code below and paste it into the editor:
+
+----------------------------------------------------------------
+-- COPY FROM HERE
+----------------------------------------------------------------
+
+-- 1. Create the wishlist table
+CREATE TABLE IF NOT EXISTS public.wishlist (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  listing_id uuid REFERENCES public.listings(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, listing_id)
+);
+
+-- 2. Enable Security (RLS)
+ALTER TABLE public.wishlist ENABLE ROW LEVEL SECURITY;
+
+-- 3. Create Access Policies
+DO $$ BEGIN
+  CREATE POLICY "Users can view their own wishlist" ON public.wishlist FOR SELECT USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can add to their wishlist" ON public.wishlist FOR INSERT WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can remove from their wishlist" ON public.wishlist FOR DELETE USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+----------------------------------------------------------------
+-- END OF CODE
+----------------------------------------------------------------
+
+3. Click the "Run" button (bottom right or top right of the editor).
+
+4. Once it says "Success", go back to your website and refresh. The wishlist function will work.

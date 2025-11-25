@@ -5,10 +5,11 @@ import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useListings, approveListing, rejectListing } from '@/hooks/useListings';
 import { useAdminStats } from '@/hooks/useAdminStats';
-import { CheckCircle, XCircle, Clock, IndianRupee, Users, TrendingUp, Download, FileSpreadsheet, FileText, ScrollText, Trophy, Bell, Tag, Activity, BarChart3, Package } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, IndianRupee, Users, TrendingUp, Download, FileSpreadsheet, FileText, ScrollText, Trophy, Bell, Tag, Activity, BarChart3, Package, Flag, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ActivityLog {
   id: string;
@@ -28,6 +29,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [flaggedReviews, setFlaggedReviews] = useState<any[]>([]);
 
   const refetchActivityLogs = async () => {
     try {
@@ -42,12 +44,25 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchFlaggedReviews = async () => {
+    try {
+      const { data } = await (supabase
+        .from('ratings') as any)
+        .select('*, listings(product_name)')
+        .eq('status', 'flagged');
+      setFlaggedReviews(data || []);
+    } catch (error) {
+      console.error('Error fetching flagged reviews:', error);
+    }
+  };
+
   useEffect(() => {
     if (!user || !isAdmin) {
       navigate('/');
       return;
     }
     refetchActivityLogs();
+    fetchFlaggedReviews();
   }, [user, isAdmin, navigate]);
 
   const handleApprove = async (listingId: string) => {
@@ -97,6 +112,31 @@ const AdminDashboard = () => {
       await refetchActivityLogs();
     }
     setLoading(null);
+  };
+
+  const handleReviewAction = async (reviewId: string, action: 'approve' | 'remove') => {
+    try {
+      const status = action === 'approve' ? 'published' : 'removed';
+      const { error } = await (supabase
+        .from('ratings') as any)
+        .update({ status })
+        .eq('id', reviewId);
+
+      if (error) throw error;
+
+      toast({
+        title: `Review ${action}d`,
+        description: `Review has been ${status}.`,
+      });
+      fetchFlaggedReviews();
+    } catch (error) {
+      console.error('Error updating review:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update review status',
+        variant: 'destructive',
+      });
+    }
   };
 
   const downloadReport = async () => {
@@ -283,70 +323,173 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Pending Listings Section */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+        <Tabs defaultValue="listings" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="listings">Pending Listings</TabsTrigger>
+            <TabsTrigger value="reviews">Flagged Reviews</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="listings">
+            <div className="grid lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <Card className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold flex items-center gap-3">
+                      <Package className="w-6 h-6 text-primary" />
+                      Pending Approvals
+                    </h2>
+                    <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-sm font-bold">
+                      {pendingListings.length} Items
+                    </span>
+                  </div>
+
+                  {pendingListings.length === 0 ? (
+                    <div className="text-center py-16">
+                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 mb-4">
+                        <CheckCircle className="w-10 h-10 text-green-500" />
+                      </div>
+                      <p className="text-xl font-semibold text-foreground mb-2">All Caught Up!</p>
+                      <p className="text-muted-foreground">No pending listings to review</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                      {pendingListings.map((listing) => (
+                        <Card key={listing.id} className="p-4 border-l-4 border-l-amber-500 hover:shadow-md transition-all">
+                          <div className="flex gap-4">
+                            <img
+                              src={listing.images[0] || '/placeholder.svg'}
+                              alt={listing.product_name}
+                              className="w-24 h-24 object-cover rounded-lg border border-border"
+                            />
+                            <div className="flex-1">
+                              <h3 className="font-bold text-lg mb-1">{listing.product_name}</h3>
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{listing.description}</p>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="font-semibold text-primary">₹{listing.rent_price || 0}{listing.product_type === 'sale' ? '' : '/day'}</span>
+                                <span className="text-muted-foreground">📍 {listing.pin_code}</span>
+                                {listing.listing_type === 'paid' && (
+                                  <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                    PAID
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                onClick={() => handleApprove(listing.id)}
+                                disabled={loading === listing.id}
+                                size="sm"
+                                className="bg-green-500 hover:bg-green-600 text-white"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                onClick={() => handleReject(listing.id)}
+                                disabled={loading === listing.id}
+                                size="sm"
+                                variant="destructive"
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </div>
+
+              {/* Activity Feed */}
+              <div>
+                <Card className="p-6">
+                  <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-primary" />
+                    Recent Activity
+                  </h2>
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    {activityLogs.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No recent activity</p>
+                    ) : (
+                      activityLogs.map((log) => (
+                        <div key={log.id} className="flex gap-3 pb-4 border-b border-border/50 last:border-0">
+                          <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">
+                              {log.action.replace(/_/g, ' ')}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(log.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="reviews">
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold flex items-center gap-3">
-                  <Package className="w-6 h-6 text-primary" />
-                  Pending Approvals
+                  <Flag className="w-6 h-6 text-red-500" />
+                  Flagged Reviews
                 </h2>
-                <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-sm font-bold">
-                  {pendingListings.length} Items
+                <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-500 text-sm font-bold">
+                  {flaggedReviews.length} Items
                 </span>
               </div>
 
-              {pendingListings.length === 0 ? (
+              {flaggedReviews.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 mb-4">
                     <CheckCircle className="w-10 h-10 text-green-500" />
                   </div>
-                  <p className="text-xl font-semibold text-foreground mb-2">All Caught Up!</p>
-                  <p className="text-muted-foreground">No pending listings to review</p>
+                  <p className="text-xl font-semibold text-foreground mb-2">All Clear!</p>
+                  <p className="text-muted-foreground">No flagged reviews to moderate</p>
                 </div>
               ) : (
-                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                  {pendingListings.map((listing) => (
-                    <Card key={listing.id} className="p-4 border-l-4 border-l-amber-500 hover:shadow-md transition-all">
+                <div className="space-y-4">
+                  {flaggedReviews.map((review) => (
+                    <Card key={review.id} className="p-4 border-l-4 border-l-red-500">
                       <div className="flex gap-4">
-                        <img
-                          src={listing.images[0] || '/placeholder.svg'}
-                          alt={listing.product_name}
-                          className="w-24 h-24 object-cover rounded-lg border border-border"
-                        />
                         <div className="flex-1">
-                          <h3 className="font-bold text-lg mb-1">{listing.product_name}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{listing.description}</p>
-                          <div className="flex items-center gap-4 text-sm">
-                            <span className="font-semibold text-primary">₹{listing.rent_price || 0}{listing.product_type === 'sale' ? '' : '/day'}</span>
-                            <span className="text-muted-foreground">📍 {listing.pin_code}</span>
-                            {listing.listing_type === 'paid' && (
-                              <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                                PAID
-                              </span>
-                            )}
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertTriangle className="w-4 h-4 text-red-500" />
+                            <span className="font-semibold text-red-500">Flagged for Review</span>
+                            <span className="text-sm text-muted-foreground">• {new Date(review.created_at).toLocaleDateString()}</span>
                           </div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            onClick={() => handleApprove(listing.id)}
-                            disabled={loading === listing.id}
-                            size="sm"
-                            className="bg-green-500 hover:bg-green-600 text-white"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            onClick={() => handleReject(listing.id)}
-                            disabled={loading === listing.id}
-                            size="sm"
-                            variant="destructive"
-                          >
-                            <XCircle className="w-4 h-4 mr-1" />
-                            Reject
-                          </Button>
+                          <p className="font-medium mb-1">Listing: {review.listings?.product_name}</p>
+                          <p className="text-sm text-muted-foreground mb-3">"{review.comment}"</p>
+                          {review.flag_reason && (
+                            <p className="text-xs bg-red-50 text-red-600 p-2 rounded mb-3">
+                              Reason: {review.flag_reason}
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleReviewAction(review.id, 'approve')}
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600 border-green-200 hover:bg-green-50"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Keep Review
+                            </Button>
+                            <Button
+                              onClick={() => handleReviewAction(review.id, 'remove')}
+                              size="sm"
+                              variant="destructive"
+                            >
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Remove Review
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -354,37 +497,8 @@ const AdminDashboard = () => {
                 </div>
               )}
             </Card>
-          </div>
-
-          {/* Activity Feed */}
-          <div>
-            <Card className="p-6">
-              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
-                Recent Activity
-              </h2>
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                {activityLogs.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No recent activity</p>
-                ) : (
-                  activityLogs.map((log) => (
-                    <div key={log.id} className="flex gap-3 pb-4 border-b border-border/50 last:border-0">
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {log.action.replace(/_/g, ' ')}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(log.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

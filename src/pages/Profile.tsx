@@ -9,6 +9,8 @@ import DashboardHero from '@/components/DashboardHeroOnProfile';
 import { ProfileEditDialog } from '@/components/ProfileEditDialog';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { OwnerReviewAnalytics } from '@/components/OwnerReviewAnalytics';
+import WishlistSection from '@/components/WishlistSection';
 
 const Profile = () => {
   const { user, authReady } = useAuth();
@@ -20,8 +22,11 @@ const Profile = () => {
   const [avatarUrl, setAvatarUrl] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
 
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
+
   useEffect(() => {
     if (user?.id) {
+      // Fetch profile
       supabase
         .from('profiles')
         .select('avatar_url, name')
@@ -35,6 +40,29 @@ const Profile = () => {
             setUserName(data.name);
           }
         });
+
+      // Fetch wishlist
+      const fetchWishlist = async () => {
+        const { data: wishlistData } = await (supabase as any)
+          .from('wishlist')
+          .select('listing_id')
+          .eq('user_id', user.id);
+
+        if (wishlistData && wishlistData.length > 0) {
+          const listingIds = wishlistData.map((item: any) => item.listing_id);
+          const { data: listingsData } = await supabase
+            .from('listings')
+            .select('*')
+            .in('id', listingIds);
+
+          if (listingsData) {
+            setWishlistItems(listingsData);
+          }
+        } else {
+          setWishlistItems([]);
+        }
+      };
+      fetchWishlist();
     }
   }, [user?.id]);
 
@@ -50,7 +78,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F5F3F4] via-white to-[#F5F3F4]">
       <Navbar />
-      
+
       <div className="container mx-auto px-3 sm:px-4 pt-16 sm:pt-20 md:pt-28 pb-8 sm:pb-12 md:pb-20">
 
         {/* Hero Section */}
@@ -86,7 +114,14 @@ const Profile = () => {
               pendingListings={pendingListings}
             />
 
+            <div className="mt-8 mb-8">
+              <h2 className="text-2xl font-bold text-[#161A1D] mb-6">Review Analytics</h2>
+              <OwnerReviewAnalytics userId={user.id} />
+            </div>
+
             <ListingCardOnProfile listings={listings} />
+
+            <WishlistSection listings={wishlistItems} />
           </>
         )}
       </div>

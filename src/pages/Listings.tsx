@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +28,11 @@ import {
   Tag,
   Sparkles,
   MessageCircle,
+  Heart,
+  Share2,
 } from "lucide-react";
+import { ShareButtons } from "@/components/ShareButtons";
+import { ListingQRCode } from "@/components/ListingQRCode";
 import {
   Carousel,
   CarouselContent,
@@ -44,6 +48,17 @@ const Listings = () => {
   const navigate = useNavigate();
   const { listings, loading } = useListings("approved");
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const listingIdFromUrl = searchParams.get("id");
+
+  useEffect(() => {
+    if (listingIdFromUrl && listings.length > 0) {
+      const listing = listings.find(l => l.id === listingIdFromUrl);
+      if (listing) {
+        setSelectedListing(listing);
+      }
+    }
+  }, [listingIdFromUrl, listings]);
   const { getOrCreateConversation, joinConversation, conversations } = useChat();
   const [searchQuery, setSearchQuery] = useState("");
   const [pinCodeFilter, setPinCodeFilter] = useState("");
@@ -61,7 +76,65 @@ const Listings = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
-  // const [testLoading] = useState(true);
+
+  // New filters and sort
+  const [minPrice, setMinPrice] = useState<number>(0);
+  const [maxPrice, setMaxPrice] = useState<number>(1000000);
+  const [sortBy, setSortBy] = useState<string>("newest");
+
+  // Wishlist state
+  const [wishlist, setWishlist] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      const fetchWishlist = async () => {
+        const { data } = await (supabase as any)
+          .from('wishlist')
+          .select('listing_id')
+          .eq('user_id', user.id);
+        if (data) {
+          setWishlist(data.map(item => item.listing_id));
+        }
+      };
+      fetchWishlist();
+    }
+  }, [user]);
+
+  const toggleWishlist = async (e: React.MouseEvent, listingId: string) => {
+    e.stopPropagation();
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please login to add items to your wishlist",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (wishlist.includes(listingId)) {
+      // Remove
+      const { error } = await (supabase as any)
+        .from('wishlist')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('listing_id', listingId);
+
+      if (!error) {
+        setWishlist(prev => prev.filter(id => id !== listingId));
+        toast({ title: "Removed from wishlist" });
+      }
+    } else {
+      // Add
+      const { error } = await (supabase as any)
+        .from('wishlist')
+        .insert({ user_id: user.id, listing_id: listingId });
+
+      if (!error) {
+        setWishlist(prev => [...prev, listingId]);
+        toast({ title: "Added to wishlist" });
+      }
+    }
+  };
 
   const handleViewListing = (listing: any) => {
     incrementViews(listing.id);
@@ -174,9 +247,25 @@ const Listings = () => {
         debouncedPin === "" || listing.pin_code.includes(debouncedPin);
       const matchesCategory =
         categoryFilter === "" || listing.category === categoryFilter;
-      return matchesSearch && matchesPinCode && matchesCategory;
+      const matchesPrice = (listing.rent_price || 0) >= minPrice && (listing.rent_price || 0) <= maxPrice;
+
+      return matchesSearch && matchesPinCode && matchesCategory && matchesPrice;
+    }).sort((a, b) => {
+      switch (sortBy) {
+        case 'price_asc':
+          return (a.rent_price || 0) - (b.rent_price || 0);
+        case 'price_desc':
+          return (b.rent_price || 0) - (a.rent_price || 0);
+        case 'most_reviewed':
+          return (b.views || 0) - (a.views || 0); // Using views as proxy for now, or fetch review count
+        case 'top_rated':
+          return (b.rating || 0) - (a.rating || 0);
+        case 'newest':
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
     });
-  }, [listings, debouncedSearch, debouncedPin, categoryFilter]);
+  }, [listings, debouncedSearch, debouncedPin, categoryFilter, minPrice, maxPrice, sortBy]);
 
   const nearbyFiltered = useMemo(() => {
     if (!nearbyEnabled) return [];
@@ -517,6 +606,12 @@ const Listings = () => {
           clusterMode={clusterMode}
           setClusterMode={setClusterMode}
           setSelectedClusterItems={setSelectedClusterItems}
+          minPrice={minPrice}
+          setMinPrice={setMinPrice}
+          maxPrice={maxPrice}
+          setMaxPrice={setMaxPrice}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
         />
 
         {/* Listings Section */}
@@ -686,6 +781,16 @@ const Listings = () => {
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md border border-[#E5383B]/20 text-[#E5383B] px-3 py-1 rounded-full text-sm font-semibold shadow-sm">
                       ₹{listing.rent_price || 0}{listing.product_type === 'sale' ? '' : '/day'}
                     </div>
+
+                    {/* Wishlist Button */}
+                    <button
+                      onClick={(e) => toggleWishlist(e, listing.id)}
+                      className="absolute top-3 right-32 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-sm hover:bg-white transition-colors"
+                    >
+                      <Heart
+                        className={`w-4 h-4 ${wishlist.includes(listing.id) ? 'fill-[#E5383B] text-[#E5383B]' : 'text-gray-600'}`}
+                      />
+                    </button>
                   </div>
 
                   {/* Content Section */}
@@ -747,6 +852,13 @@ const Listings = () => {
                 <div className="flex items-center gap-2 text-sm text-[#660708]/70 mt-1">
                   <User size={16} />
                   <span>{selectedListing.owner_name || "Unknown"}</span>
+                </div>
+                <div className="mt-4 flex items-center gap-4">
+                  <ShareButtons
+                    url={`${window.location.origin}/listings?id=${selectedListing.id}`}
+                    title={selectedListing.product_name}
+                  />
+                  <ListingQRCode listingId={selectedListing.id} productName={selectedListing.product_name} />
                 </div>
               </DialogHeader>
 

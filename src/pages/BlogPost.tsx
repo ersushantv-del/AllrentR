@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { SEOHead } from "@/components/SEOHead";
 import { Blog } from "@/hooks/useBlogs";
+import { BlogComments } from "@/components/BlogComments";
 
 // Helper function to calculate reading time
 const calculateReadingTime = (content: string): number => {
@@ -304,6 +305,9 @@ const BlogPost = () => {
               </div>
             </div>
           )}
+
+          {/* Comments Section */}
+          <BlogComments blogId={blog.id} />
 
           {/* Back Button */}
           <div className="mt-12 pt-8 border-t border-[#D3D3D3]">

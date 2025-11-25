@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Star, MessageCircle, CornerDownRight, User as UserIcon } from 'lucide-react';
+import { Star, MessageCircle, CornerDownRight, ThumbsUp, Play } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ReviewMediaUpload } from './ReviewMediaUpload';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +22,12 @@ interface Rating {
   comment: string | null;
   created_at: string;
   rating_replies?: Reply[];
+  media_urls?: string[] | null;
+  helpful_votes?: number;
+  rating_condition?: number;
+  rating_communication?: number;
+  rating_value?: number;
+  rating_accuracy?: number;
 }
 
 interface ProfileMap {
@@ -40,12 +47,45 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
   const [profiles, setProfiles] = useState<ProfileMap>({});
   const [loading, setLoading] = useState(false);
   const [userRating, setUserRating] = useState(0);
+  const [ratingCondition, setRatingCondition] = useState(0);
+  const [ratingCommunication, setRatingCommunication] = useState(0);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingAccuracy, setRatingAccuracy] = useState(0);
   const [userComment, setUserComment] = useState('');
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
+  const [listingOwnerId, setListingOwnerId] = useState<string | null>(null);
+  const [userVotes, setUserVotes] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
+
+  const fetchListingOwner = async () => {
+    const { data } = await supabase
+      .from('listings')
+      .select('user_id')
+      .eq('id', listingId)
+      .single();
+
+    if (data) {
+      setListingOwnerId(data.user_id);
+    }
+  };
+
+  const fetchUserVotes = async () => {
+    if (!currentUserId) return;
+    const { data } = await (supabase as any)
+      .from('rating_votes')
+      .select('rating_id')
+      .eq('user_id', currentUserId);
+
+    if (data) {
+      const votes: Record<string, boolean> = {};
+      data.forEach((v: any) => votes[v.rating_id] = true);
+      setUserVotes(votes);
+    }
+  };
 
   const fetchRatings = async () => {
     try {
@@ -119,6 +159,16 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
       return;
     }
 
+    // Owner verification removed to allow public replies
+    // if (currentUserId !== listingOwnerId) {
+    //   toast({
+    //     title: 'Unauthorized',
+    //     description: 'Only the listing owner can reply to reviews',
+    //     variant: 'destructive',
+    //   });
+    //   return;
+    // }
+
     if (!replyText.trim()) {
       toast({
         title: 'Error',
@@ -129,7 +179,9 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
     }
 
     setReplyLoading(true);
-    const { error } = await (supabase.from('rating_replies') as any).insert({
+    // Note: This will fail if the 'rating_replies' table does not exist.
+    // Please run the migration SQL provided to create the table.
+    const { error } = await (supabase as any).from('rating_replies').insert({
       rating_id: ratingId,
       user_id: currentUserId,
       reply_text: replyText,
@@ -139,7 +191,7 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
       console.error('Error submitting reply:', error);
       toast({
         title: 'Error submitting reply',
-        description: error.message || 'Failed to submit reply. Please try again.',
+        description: error.message || 'Failed to submit reply. Database table may be missing.',
         variant: 'destructive',
       });
     } else {
@@ -154,6 +206,80 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
     setReplyLoading(false);
   };
 
+  const handleHelpfulVote = async (ratingId: string, currentVotes: number) => {
+    if (!currentUserId) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to vote',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Temporarily disabled until migration is run
+    toast({
+      title: 'Feature Coming Soon',
+      description: 'Helpful voting will be enabled shortly.',
+    });
+    return;
+
+    /* Database operations disabled to prevent errors
+    if (userVotes[ratingId]) {
+      toast({
+        title: 'Already voted',
+        description: 'You have already marked this review as helpful',
+      });
+      return;
+    }
+
+    // Optimistic update
+    setRatings(prev => prev.map(r =>
+      r.id === ratingId
+        ? { ...r, helpful_votes: (r.helpful_votes || 0) + 1 }
+        : r
+    ));
+    setUserVotes(prev => ({ ...prev, [ratingId]: true }));
+
+    try {
+      const { error: voteError } = await (supabase as any)
+        .from('rating_votes')
+        .insert({
+          rating_id: ratingId,
+          user_id: currentUserId,
+          vote_type: true
+        });
+
+      if (voteError) throw voteError;
+
+      const { error: updateError } = await supabase
+        .from('ratings')
+        .update({ helpful_votes: (currentVotes || 0) + 1 })
+        .eq('id', ratingId);
+
+      if (updateError) throw updateError;
+
+    } catch (error) {
+      console.error('Error submitting vote:', error);
+      // Revert optimistic update
+      setRatings(prev => prev.map(r =>
+        r.id === ratingId
+          ? { ...r, helpful_votes: currentVotes }
+          : r
+      ));
+      setUserVotes(prev => {
+        const newVotes = { ...prev };
+        delete newVotes[ratingId];
+        return newVotes;
+      });
+      toast({
+        title: 'Error',
+        description: 'Failed to submit vote',
+        variant: 'destructive',
+      });
+    }
+    */
+  };
+
   const handleSubmitRating = async () => {
     if (!currentUserId) {
       toast({
@@ -164,27 +290,56 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
       return;
     }
 
-    if (userRating === 0) {
+    if (ratingCondition === 0 || ratingCommunication === 0 || ratingValue === 0 || ratingAccuracy === 0) {
       toast({
         title: 'Error',
-        description: 'Please select a rating',
+        description: 'Please rate all categories',
         variant: 'destructive',
       });
       return;
     }
 
+    // Calculate overall rating
+    const overallRating = Math.round((ratingCondition + ratingCommunication + ratingValue + ratingAccuracy) / 4);
+
+    // Simple auto-moderation
+    const offensiveKeywords = ['scam', 'fake', 'fraud', 'hate', 'stupid', 'idiot'];
+    const contentToCheck = (userComment || '').toLowerCase();
+    const isFlagged = offensiveKeywords.some(keyword => contentToCheck.includes(keyword));
+    if (ratingCondition === 0 || ratingCommunication === 0 || ratingValue === 0 || ratingAccuracy === 0) {
+      toast({
+        title: 'Missing Ratings',
+        description: 'Please rate all categories (Condition, Communication, Value, Accuracy)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const status = isFlagged ? 'flagged' : 'published';
+    const flagReason = isFlagged ? 'Potential offensive content detected' : null;
+
     setLoading(true);
-    const { error } = await supabase.from('ratings').upsert({
+    const { error } = await (supabase.from('ratings') as any).upsert({
       listing_id: listingId,
       user_id: currentUserId,
-      rating: userRating,
+      rating: overallRating,
+      // Temporarily commented out until migration is run
+      // rating_condition: ratingCondition,
+      // rating_communication: ratingCommunication,
+      // rating_value: ratingValue,
+      // rating_accuracy: ratingAccuracy,
       comment: userComment || null,
+      // media_urls: mediaUrls,
+      // status: status,
+      // flag_reason: flagReason
+    }, {
+      onConflict: 'listing_id, user_id'
     });
 
     if (error) {
       toast({
         title: 'Error',
-        description: 'Failed to submit rating',
+        description: error.message || 'Failed to submit rating',
         variant: 'destructive',
       });
     } else {
@@ -193,7 +348,12 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
         description: 'Rating submitted successfully',
       });
       setUserRating(0);
+      setRatingCondition(0);
+      setRatingCommunication(0);
+      setRatingValue(0);
+      setRatingAccuracy(0);
       setUserComment('');
+      setMediaUrls([]);
       fetchRatings();
     }
     setLoading(false);
@@ -201,7 +361,12 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
 
   useEffect(() => {
     fetchRatings();
-  }, []);
+    fetchListingOwner();
+  }, [listingId]);
+
+  useEffect(() => {
+    fetchUserVotes();
+  }, [currentUserId]);
 
   const averageRating =
     ratings.length > 0
@@ -232,22 +397,32 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
           <div className="p-6 border border-[#D3D3D3]/60 rounded-2xl bg-[#F5F3F4]/70 shadow-sm hover:shadow-[0_0_20px_rgba(229,56,59,0.15)] transition-all duration-300">
             <h4 className="font-semibold text-[#161A1D] mb-3 text-lg">Leave a Rating</h4>
 
-            <div className="flex gap-2 mb-4">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => setUserRating(star)}
-                  onMouseEnter={() => setHoveredRating(star)}
-                  onMouseLeave={() => setHoveredRating(0)}
-                  className="transition-transform duration-200 hover:scale-110"
-                >
-                  <Star
-                    className={`w-8 h-8 ${star <= (hoveredRating || userRating)
-                      ? 'fill-[#E5383B] text-[#E5383B] drop-shadow-[0_0_4px_rgba(229,56,59,0.3)]'
-                      : 'text-[#B1A7A6]'
-                      }`}
-                  />
-                </button>
+            <div className="space-y-4 mb-6">
+              {[
+                { label: 'Item Condition', value: ratingCondition, set: setRatingCondition },
+                { label: 'Owner Communication', value: ratingCommunication, set: setRatingCommunication },
+                { label: 'Value for Money', value: ratingValue, set: setRatingValue },
+                { label: 'Accuracy', value: ratingAccuracy, set: setRatingAccuracy },
+              ].map((cat) => (
+                <div key={cat.label} className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[#161A1D]">{cat.label}</span>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => cat.set(star)}
+                        className="transition-transform duration-200 hover:scale-110"
+                      >
+                        <Star
+                          className={`w-5 h-5 ${star <= cat.value
+                            ? 'fill-[#E5383B] text-[#E5383B]'
+                            : 'text-[#B1A7A6]'
+                            }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
 
@@ -259,6 +434,13 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
               placeholder:text-[#B1A7A6] focus:ring-[#E5383B] focus:border-[#E5383B] rounded-xl"
               rows={3}
             />
+
+            <div className="mb-4">
+              <ReviewMediaUpload
+                userId={currentUserId}
+                onMediaUploaded={setMediaUrls}
+              />
+            </div>
             <Button
               onClick={handleSubmitRating}
               disabled={loading}
@@ -318,6 +500,70 @@ export const RatingCard = ({ listingId, currentUserId }: RatingCardProps) => {
                       Reply
                     </Button>
                   )}
+                </div>
+
+                {rating.media_urls && rating.media_urls.length > 0 && (
+                  <div className="mb-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {rating.media_urls.map((url, idx) => {
+                        const isVideo = url.toLowerCase().match(/\.(mp4|webm|ogg)$/);
+                        return (
+                          <div key={idx} className="relative rounded-lg overflow-hidden aspect-square bg-black/5 border border-black/10">
+                            {isVideo ? (
+                              <video
+                                src={url}
+                                className="w-full h-full object-cover"
+                                controls
+                              />
+                            ) : (
+                              <img
+                                src={url}
+                                alt={`Review media ${idx + 1}`}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Detailed Ratings Display */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-4 bg-white/40 p-3 rounded-xl text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Condition</span>
+                    <span className="font-medium text-[#E5383B]">{rating.rating_condition || rating.rating}/5</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Communication</span>
+                    <span className="font-medium text-[#E5383B]">{rating.rating_communication || rating.rating}/5</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Value</span>
+                    <span className="font-medium text-[#E5383B]">{rating.rating_value || rating.rating}/5</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Accuracy</span>
+                    <span className="font-medium text-[#E5383B]">{rating.rating_accuracy || rating.rating}/5</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 mb-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleHelpfulVote(rating.id, rating.helpful_votes || 0)}
+                    className={`gap-2 h-8 px-3 rounded-full transition-all duration-300 ${userVotes[rating.id]
+                      ? 'bg-[#E5383B]/10 text-[#E5383B]'
+                      : 'text-[#660708]/60 hover:text-[#E5383B] hover:bg-[#E5383B]/5'
+                      }`}
+                  >
+                    <ThumbsUp className={`w-4 h-4 ${userVotes[rating.id] ? 'fill-current' : ''}`} />
+                    <span className="text-xs font-medium">
+                      Helpful ({rating.helpful_votes || 0})
+                    </span>
+                  </Button>
                 </div>
 
                 {rating.comment && (
